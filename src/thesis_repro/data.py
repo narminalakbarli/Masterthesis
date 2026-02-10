@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -10,12 +12,39 @@ from sklearn.datasets import make_classification
 DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 RAW_PATH = DATA_DIR / "creditcard.csv"
-THESIS_URL = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
+KAGGLE_DATASET = "mlg-ulb/creditcardfraud"
+KAGGLE_ZIP = DATA_DIR / "creditcardfraud.zip"
+PUBLIC_MIRROR_URL = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
 
 
-def _download_creditcard_csv(path: Path = RAW_PATH) -> bool:
+def _download_from_kaggle(path: Path = RAW_PATH) -> bool:
     try:
-        response = requests.get(THESIS_URL, timeout=60)
+        from kaggle.api.kaggle_api_extended import KaggleApi
+    except Exception:
+        return False
+
+    has_auth = (Path.home() / ".kaggle" / "kaggle.json").exists() or (
+        os.getenv("KAGGLE_USERNAME") and os.getenv("KAGGLE_KEY")
+    )
+    if not has_auth:
+        return False
+
+    try:
+        api = KaggleApi()
+        api.authenticate()
+        api.dataset_download_files(KAGGLE_DATASET, path=str(DATA_DIR), quiet=True, unzip=False)
+        if KAGGLE_ZIP.exists():
+            with zipfile.ZipFile(KAGGLE_ZIP, "r") as zf:
+                zf.extractall(DATA_DIR)
+            KAGGLE_ZIP.unlink(missing_ok=True)
+        return path.exists()
+    except Exception:
+        return False
+
+
+def _download_from_public_mirror(path: Path = RAW_PATH) -> bool:
+    try:
+        response = requests.get(PUBLIC_MIRROR_URL, timeout=120)
         response.raise_for_status()
         path.write_bytes(response.content)
         return True
@@ -45,11 +74,13 @@ def _generate_synthetic_creditcard(n_samples: int = 200_000, random_state: int =
 
 def load_base_dataset() -> pd.DataFrame:
     if RAW_PATH.exists():
-        df = pd.read_csv(RAW_PATH)
-        return df
+        return pd.read_csv(RAW_PATH)
 
-    ok = _download_creditcard_csv(RAW_PATH)
-    if ok:
+    # Prefer Kaggle (same source as thesis), fallback to public mirror, then synthetic.
+    if _download_from_kaggle(RAW_PATH):
+        return pd.read_csv(RAW_PATH)
+
+    if _download_from_public_mirror(RAW_PATH):
         return pd.read_csv(RAW_PATH)
 
     return _generate_synthetic_creditcard()
@@ -59,7 +90,6 @@ def add_spatiotemporal_and_synthetic_features(df: pd.DataFrame, random_state: in
     rng = np.random.default_rng(random_state)
     out = df.copy()
 
-    # Temporal features inspired by thesis.
     seconds = out["Time"].to_numpy()
     out["hour"] = ((seconds // 3600) % 24).astype(int)
     out["day"] = ((seconds // (3600 * 24)) % 7).astype(int)
@@ -67,7 +97,6 @@ def add_spatiotemporal_and_synthetic_features(df: pd.DataFrame, random_state: in
     out["inter_txn_seconds"] = out["Time"].diff().fillna(out["Time"].median()).clip(lower=0)
     out["amount_log"] = np.log1p(out["Amount"])
 
-    # Synthetic transactional context (channel, same_state, card_present, merchant category).
     n = len(out)
     out["channel"] = rng.choice(["chip", "swipe", "online"], size=n, p=[0.744, 0.146, 0.11])
     out["same_state"] = rng.choice([1, 0], size=n, p=[0.6383, 0.3617])
@@ -78,21 +107,14 @@ def add_spatiotemporal_and_synthetic_features(df: pd.DataFrame, random_state: in
         p=[0.29, 0.12, 0.08, 0.07, 0.34, 0.10],
     )
 
-    # Approximate geolocation distance (km) and region-change signal.
-    regional_centers = np.array([
-        [52.52, 13.41],
-        [48.14, 11.58],
-        [50.11, 8.68],
-        [45.46, 9.19],
-        [41.39, 2.17],
-        [48.86, 2.35],
-    ])
+    regional_centers = np.array(
+        [[52.52, 13.41], [48.14, 11.58], [50.11, 8.68], [45.46, 9.19], [41.39, 2.17], [48.86, 2.35]]
+    )
     merchant_idx = rng.integers(0, len(regional_centers), size=n)
     home_idx = rng.integers(0, len(regional_centers), size=n)
     merchant = regional_centers[merchant_idx]
     home = regional_centers[home_idx]
 
-    # Lightweight distance approximation (euclidean on lat/lon scaled).
     out["geo_distance_km"] = np.sqrt(((merchant[:, 0] - home[:, 0]) * 111) ** 2 + ((merchant[:, 1] - home[:, 1]) * 73) ** 2)
     out["merchant_region"] = merchant_idx
     out["home_region"] = home_idx
