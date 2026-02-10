@@ -208,10 +208,8 @@ __marimo__/
 
 # Generated artifacts
 data/
-!outputs/plots/.gitkeep
-
-# Generated experiment tables/reports (reproducible, do not track)
 outputs/*.csv
 outputs/*.md
-!outputs/README.md
 outputs/plots/*
+!outputs/README.md
+!outputs/plots/.gitkeep
