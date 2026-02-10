@@ -13,6 +13,9 @@ The project runs end-to-end experiments on the ULB/Kaggle credit card fraud data
   - imbalance handling methods,
   - model-family comparison,
   - rule-based benchmark and cost comparison.
+- **Thesis model coverage** including classical ML (LR/DT/RF/XGBoost/CatBoost), deep proxies (LSTM/CNN/Attention),
+  ensemble methods (stacking + hybrid XGB-LSTM), and anomaly models (autoencoder proxy, isolation forest, one-class SVM).
+- **Dataset coverage registry** in code for ULB/Kaggle source, public mirror, Sinčák-inspired augmentation, and synthetic fallback.
 - **Generated artifacts**:
   - metrics tables (`model_results.csv`),
   - summary markdown,
