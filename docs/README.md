@@ -1,9 +1,10 @@
 # Docs
 
-`thesis_chapter_notes.md` is a generated artifact created by:
+- `reproducibility_tutorial.md`: step-by-step instructions to reproduce experiments and plots.
+- `thesis_chapter_notes.md`: generated notes extracted from the thesis PDF.
+
+Regenerate chapter notes with:
 
 ```bash
-python3 scripts/extract_thesis_chapters.py
+python scripts/extract_thesis_chapters.py
 ```
-
-It is intentionally gitignored to avoid recurring merge conflicts on regenerated content.
