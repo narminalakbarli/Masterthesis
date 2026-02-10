@@ -213,3 +213,4 @@ outputs/*.md
 outputs/plots/*
 !outputs/README.md
 !outputs/plots/.gitkeep
+docs/thesis_chapter_notes.md
