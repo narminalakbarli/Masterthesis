@@ -1,0 +1,8 @@
+paper_experiment,paper_count,implemented,replication_status
+E1 spatial-temporal feature impact,1,True,replicated
+E2 balancing method comparison (6 methods),6,True,replicated
+E3 model family comparison (LR/DT/RF/XGB/NN),5,True,replicated
+E4 deep sequential models (LSTM/attention/CNN),3,False,not_yet_replicated
+"E5 ensemble comparison (stacking, hybrid XGB-LSTM)",2,False,not_yet_replicated
+E6 rule-based benchmark and cost-benefit,1,True,replicated
+E7 interpretability (SHAP/attention),1,False,not_yet_replicated
