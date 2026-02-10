@@ -14,6 +14,7 @@ DATA_DIR.mkdir(exist_ok=True)
 RAW_PATH = DATA_DIR / "creditcard.csv"
 KAGGLE_DATASET = "mlg-ulb/creditcardfraud"
 KAGGLE_ZIP = DATA_DIR / "creditcardfraud.zip"
+LOCAL_ARCHIVE = Path("kaggle.zip")
 PUBLIC_MIRROR_URL = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
 
 
@@ -41,6 +42,45 @@ DATASET_REGISTRY = {
 }
 
 
+def _extract_creditcard_csv(zip_path: Path, path: Path = RAW_PATH) -> bool:
+    if not zip_path.exists():
+        return False
+
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            csv_members = [name for name in zf.namelist() if name.lower().endswith("creditcard.csv")]
+            if not csv_members:
+                csv_members = [name for name in zf.namelist() if name.lower().endswith(".csv")]
+            if not csv_members:
+                return False
+
+            extracted = Path(zf.extract(csv_members[0], DATA_DIR))
+
+        if extracted != path:
+            if path.exists():
+                path.unlink()
+            extracted.replace(path)
+            try:
+                extracted.parent.rmdir()
+            except OSError:
+                pass
+
+        return path.exists()
+    except Exception:
+        return False
+
+
+def _load_from_local_archive(path: Path = RAW_PATH) -> bool:
+    candidates = [
+        DATA_DIR / LOCAL_ARCHIVE.name,
+        Path.cwd() / LOCAL_ARCHIVE.name,
+    ]
+    for candidate in candidates:
+        if _extract_creditcard_csv(candidate, path=path):
+            return True
+    return False
+
+
 def _download_from_kaggle(path: Path = RAW_PATH) -> bool:
     try:
         from kaggle.api.kaggle_api_extended import KaggleApi
@@ -58,9 +98,9 @@ def _download_from_kaggle(path: Path = RAW_PATH) -> bool:
         api.authenticate()
         api.dataset_download_files(KAGGLE_DATASET, path=str(DATA_DIR), quiet=True, unzip=False)
         if KAGGLE_ZIP.exists():
-            with zipfile.ZipFile(KAGGLE_ZIP, "r") as zf:
-                zf.extractall(DATA_DIR)
+            ok = _extract_creditcard_csv(KAGGLE_ZIP, path=path)
             KAGGLE_ZIP.unlink(missing_ok=True)
+            return ok
         return path.exists()
     except Exception:
         return False
@@ -100,7 +140,10 @@ def load_base_dataset() -> pd.DataFrame:
     if RAW_PATH.exists():
         return pd.read_csv(RAW_PATH)
 
-    # Prefer Kaggle (same source as thesis), fallback to public mirror, then synthetic.
+    # Prefer local Kaggle archive, then Kaggle API (same source as thesis), then public mirror, then synthetic.
+    if _load_from_local_archive(RAW_PATH):
+        return pd.read_csv(RAW_PATH)
+
     if _download_from_kaggle(RAW_PATH):
         return pd.read_csv(RAW_PATH)
 
