@@ -17,6 +17,30 @@ KAGGLE_ZIP = DATA_DIR / "creditcardfraud.zip"
 PUBLIC_MIRROR_URL = "https://storage.googleapis.com/download.tensorflow.org/data/creditcard.csv"
 
 
+DATASET_REGISTRY = {
+    "ULB_Kaggle_CreditCardFraud": {
+        "type": "real",
+        "source": "mlg-ulb/creditcardfraud",
+        "local_path": str(RAW_PATH),
+    },
+    "PublicMirror_CreditCard": {
+        "type": "real_mirror",
+        "source": PUBLIC_MIRROR_URL,
+        "local_path": str(RAW_PATH),
+    },
+    "SincakInspired_Augmented": {
+        "type": "synthetic_feature_layer",
+        "source": "generated via add_spatiotemporal_and_synthetic_features",
+        "local_path": "in-memory augmentation",
+    },
+    "SyntheticCreditCardFallback": {
+        "type": "synthetic_full",
+        "source": "sklearn.make_classification",
+        "local_path": "generated on demand",
+    },
+}
+
+
 def _download_from_kaggle(path: Path = RAW_PATH) -> bool:
     try:
         from kaggle.api.kaggle_api_extended import KaggleApi
