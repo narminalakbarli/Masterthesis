@@ -15,8 +15,7 @@ from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score, roc_auc_score
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import average_precision_score, f1_score, fbeta_score, precision_score, recall_score, roc_auc_score
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
@@ -40,6 +39,7 @@ class EvalResult:
     recall: float
     precision: float
     f1: float
+    f2: float
     auc_roc: float
     auc_pr: float
     net_savings_rel_rule_based: float
@@ -64,12 +64,12 @@ def _rule_based_scores(df: pd.DataFrame) -> np.ndarray:
 
 def _best_threshold(y_true: np.ndarray, y_score: np.ndarray) -> float:
     candidates = np.linspace(0.1, 0.9, 17)
-    best_t, best_f1 = 0.5, -1.0
+    best_t, best_f2 = 0.5, -1.0
     for t in candidates:
         pred = (y_score >= t).astype(int)
-        f1 = f1_score(y_true, pred, zero_division=0)
-        if f1 > best_f1:
-            best_f1, best_t = f1, float(t)
+        f2 = fbeta_score(y_true, pred, beta=2, zero_division=0)
+        if f2 > best_f2:
+            best_f2, best_t = f2, float(t)
     return best_t
 
 
@@ -122,9 +122,11 @@ def _prepare_splits(df: pd.DataFrame, features: list[str]):
     X_test_full = df.iloc[split_idx:]
     y_test = y[split_idx:]
 
-    X_tr, X_val, y_tr, y_val = train_test_split(
-        X_train_all, y_train_all, test_size=0.2, random_state=42, stratify=y_train_all
-    )
+    val_split = int(len(X_train_all) * 0.8)
+    X_tr = X_train_all.iloc[:val_split]
+    y_tr = y_train_all[:val_split]
+    X_val = X_train_all.iloc[val_split:]
+    y_val = y_train_all[val_split:]
 
     numeric_cols = X_tr.select_dtypes(include=["number"]).columns.tolist()
     categorical_cols = [c for c in X_tr.columns if c not in numeric_cols]
@@ -187,6 +189,7 @@ def _run_case(
         recall=recall_score(y_test, pred, zero_division=0),
         precision=precision_score(y_test, pred, zero_division=0),
         f1=f1_score(y_test, pred, zero_division=0),
+        f2=fbeta_score(y_test, pred, beta=2, zero_division=0),
         auc_roc=roc_auc_score(y_test, test_score),
         auc_pr=average_precision_score(y_test, test_score),
         net_savings_rel_rule_based=(rule_cost / cost if cost > 0 else np.inf),
@@ -284,7 +287,7 @@ def _coverage_report(results: pd.DataFrame) -> pd.DataFrame:
     return paper
 
 
-def run(sample_size: int = 60_000) -> pd.DataFrame:
+def run(sample_size: int = 80_000) -> pd.DataFrame:
     base = load_base_dataset()
     if len(base) > sample_size:
         base = base.sample(n=sample_size, random_state=42, replace=False)
@@ -326,6 +329,7 @@ def run(sample_size: int = 60_000) -> pd.DataFrame:
             recall=recall_score(yt_e, rule_pred, zero_division=0),
             precision=precision_score(yt_e, rule_pred, zero_division=0),
             f1=f1_score(yt_e, rule_pred, zero_division=0),
+            f2=fbeta_score(yt_e, rule_pred, beta=2, zero_division=0),
             auc_roc=roc_auc_score(yt_e, rule_proba),
             auc_pr=average_precision_score(yt_e, rule_proba),
             net_savings_rel_rule_based=1.0,

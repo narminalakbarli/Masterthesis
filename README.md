@@ -49,7 +49,7 @@ Generated output:
 ## 4) Run reproducibility pipeline
 
 ```bash
-python -m src.thesis_repro.run_pipeline --sample-size 60000
+python -m src.thesis_repro.run_pipeline --sample-size 80000
 ```
 
 Generated outputs:
