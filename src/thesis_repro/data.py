@@ -12,6 +12,7 @@ from sklearn.datasets import make_classification
 DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 RAW_PATH = DATA_DIR / "creditcard.csv"
+AURELIUS_PRIOR_PATH = DATA_DIR / "aurelius_context_prior.csv"
 KAGGLE_DATASET = "mlg-ulb/creditcardfraud"
 KAGGLE_ZIP = DATA_DIR / "creditcardfraud.zip"
 LOCAL_ARCHIVE = Path("kaggle.zip")
@@ -29,10 +30,15 @@ DATASET_REGISTRY = {
         "source": PUBLIC_MIRROR_URL,
         "local_path": str(RAW_PATH),
     },
-    "SincakInspired_Augmented": {
+    "AureliusQuantizedContext_Augmented": {
         "type": "synthetic_feature_layer",
         "source": "generated via add_spatiotemporal_and_synthetic_features",
         "local_path": "in-memory augmentation",
+    },
+    "AureliusQuantizedContext_ExternalPrior": {
+        "type": "synthetic_external",
+        "source": "Aurelius Quantized Transactional Context Corpus (optional local CSV prior)",
+        "local_path": str(AURELIUS_PRIOR_PATH),
     },
     "SyntheticCreditCardFallback": {
         "type": "synthetic_full",
@@ -165,14 +171,56 @@ def add_spatiotemporal_and_synthetic_features(df: pd.DataFrame, random_state: in
     out["amount_log"] = np.log1p(out["Amount"])
 
     n = len(out)
-    out["channel"] = rng.choice(["chip", "swipe", "online"], size=n, p=[0.744, 0.146, 0.11])
-    out["same_state"] = rng.choice([1, 0], size=n, p=[0.6383, 0.3617])
-    out["card_present"] = (out["channel"] != "online").astype(int)
-    out["merchant_category"] = rng.choice(
-        ["grocery", "fuel", "entertainment", "travel", "retail", "services"],
-        size=n,
-        p=[0.29, 0.12, 0.08, 0.07, 0.34, 0.10],
+
+    # If an external Aurelius prior file is available locally, borrow its
+    # categorical context profile and align rows by quantized (Time, Amount).
+    # Otherwise, fall back to thesis-inspired synthetic generation.
+    if AURELIUS_PRIOR_PATH.exists():
+        prior_df = pd.read_csv(AURELIUS_PRIOR_PATH)
+        required = {"Time", "Amount", "channel", "same_state", "merchant_category"}
+        if required.issubset(prior_df.columns):
+            key_self = pd.DataFrame(
+                {
+                    "Time_key": out["Time"].round(0).astype(int),
+                    "Amount_key": out["Amount"].round(2),
+                }
+            )
+            key_prior = pd.DataFrame(
+                {
+                    "Time_key": prior_df["Time"].round(0).astype(int),
+                    "Amount_key": prior_df["Amount"].round(2),
+                    "channel": prior_df["channel"],
+                    "same_state": prior_df["same_state"],
+                    "merchant_category": prior_df["merchant_category"],
+                }
+            )
+            merged = key_self.merge(key_prior, on=["Time_key", "Amount_key"], how="left")
+            out["channel"] = merged["channel"]
+            out["same_state"] = merged["same_state"]
+            out["merchant_category"] = merged["merchant_category"]
+        else:
+            out["channel"] = np.nan
+            out["same_state"] = np.nan
+            out["merchant_category"] = np.nan
+    else:
+        out["channel"] = np.nan
+        out["same_state"] = np.nan
+        out["merchant_category"] = np.nan
+
+    out["channel"] = out["channel"].fillna(
+        pd.Series(rng.choice(["chip", "swipe", "online"], size=n, p=[0.744, 0.146, 0.11]))
     )
+    out["same_state"] = out["same_state"].fillna(pd.Series(rng.choice([1, 0], size=n, p=[0.6383, 0.3617]))).astype(int)
+    out["merchant_category"] = out["merchant_category"].fillna(
+        pd.Series(
+            rng.choice(
+                ["grocery", "fuel", "entertainment", "travel", "retail", "services"],
+                size=n,
+                p=[0.29, 0.12, 0.08, 0.07, 0.34, 0.10],
+            )
+        )
+    )
+    out["card_present"] = (out["channel"] != "online").astype(int)
 
     regional_centers = np.array(
         [[52.52, 13.41], [48.14, 11.58], [50.11, 8.68], [45.46, 9.19], [41.39, 2.17], [48.86, 2.35]]
