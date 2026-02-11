@@ -39,6 +39,25 @@ The downloader/pipeline will use this order:
 
 > If Kaggle credentials are missing (`~/.kaggle/kaggle.json`), the script still works using the public mirror.
 
+
+### Optional: include the Aurelius context prior dataset
+If you have access to the synthetic dataset referenced in the thesis, place it at:
+
+```bash
+data/aurelius_context_prior.csv
+```
+
+Expected columns used by the pipeline:
+- `Time`
+- `Amount`
+- `channel`
+- `same_state`
+- `merchant_category`
+
+When this file exists, the feature augmentation step performs quantized key alignment on `Time`/`Amount` and reuses these fields; missing rows are still backfilled with thesis-inspired synthetic values.
+
+Formal view: this file acts as a contextual prior term for categorical features, approximating `p(context | time, amount)` under discretized keys.
+
 ## 5) Extract thesis chapter notes (optional but recommended)
 
 ```bash

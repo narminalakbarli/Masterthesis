@@ -15,12 +15,24 @@ The project runs end-to-end experiments on the ULB/Kaggle credit card fraud data
   - rule-based benchmark and cost comparison.
 - **Thesis model coverage** including classical ML (LR/DT/RF/XGBoost/CatBoost), deep proxies (LSTM/CNN/Attention),
   ensemble methods (stacking + hybrid XGB-LSTM), and anomaly models (autoencoder proxy, isolation forest, one-class SVM).
-- **Dataset coverage registry** in code for ULB/Kaggle source, public mirror, Sinčák-inspired augmentation, and synthetic fallback.
+- **Dataset coverage registry** in code for ULB/Kaggle source, public mirror, optional **Aurelius Quantized Transactional Context Corpus** prior (`data/aurelius_context_prior.csv`), Aurelius context augmentation, and synthetic fallback.
 - **Generated artifacts**:
   - metrics tables (`model_results.csv`),
   - summary markdown,
   - paper target validation and experiment coverage,
   - plots for recall/F1/balancing/benchmark savings.
+
+
+## Aurelius prior (naming + rationale)
+
+To avoid person-specific naming and make the method explicit, the optional context dataset is now called the
+**Aurelius Quantized Transactional Context Corpus (AQTCC)**.
+
+Why this name:
+- **Quantized**: records are aligned by quantized keys `(⌈Time⌉, round(Amount, 2))`.
+- **Transactional Context**: it contributes contextual categorical priors (`channel`, `same_state`, `merchant_category`).
+- **Corpus/Prior**: mathematically it behaves as a prior distribution layer for categorical context, i.e.
+  \( p(c \mid t, a) \) used when key-matched rows exist, with fallback sampling from calibrated categorical marginals.
 
 ## Quickstart
 
