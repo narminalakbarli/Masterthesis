@@ -10,3 +10,5 @@ Suggested mapping:
 - `04_imbalance_smote.md` → Code 4.4
 - `05_model_training_eval.md` → Code 4.5
 - `06_reproducibility_config.md` → Code 4.6
+
+- `07_experiment_matrix_coverage.md` → Code 4.7
