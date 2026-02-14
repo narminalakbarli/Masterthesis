@@ -226,6 +226,34 @@ def default_experiment_config() -> dict[str, Any]:
                     "HybridXGBLSTM",
                 ],
             },
+            "model_family_comparison": {
+                "enabled": True,
+                "balancing": "smote",
+                "feature_set": "enhanced_features",
+                "models": [
+                    "LogisticRegression",
+                    "DecisionTree",
+                    "RandomForest",
+                    "XGBoost",
+                    "CatBoost",
+                    "MLP",
+                    "LSTMProxy",
+                    "CNNProxy",
+                    "AttentionProxy",
+                ],
+            },
+            "ensemble_comparison": {
+                "enabled": True,
+                "balancing": "smote",
+                "feature_set": "enhanced_features",
+                "models": ["StackingEnsemble", "HybridXGBLSTM"],
+            },
+            "anomaly_methods": {
+                "enabled": True,
+                "balancing": "none",
+                "feature_set": "enhanced_features",
+                "models": ["AutoencoderProxy", "IsolationForest", "OneClassSVM"],
+            },
         },
         "paper_targets": [
             {"claim": "RF recall baseline", "target": 0.93, "metric": "recall", "model": "RandomForest", "feature_set": "baseline"},
@@ -771,6 +799,48 @@ def run(sample_size: int | None = None, random_state: int | None = None, config:
                         rule_cost,
                     )
                 )
+
+    feature_lookup = {
+        "baseline_features": (Xtr_b, ytr_b, Xv_b, yv_b, Xt_b, yt_b),
+        "enhanced_features": (Xtr_e, ytr_e, Xv_e, yv_e, Xt_e, yt_e),
+    }
+
+    for study_key, study_name in [
+        ("model_family_comparison", "model_family_comparison"),
+        ("ensemble_comparison", "ensemble_comparison"),
+        ("anomaly_methods", "anomaly_methods"),
+    ]:
+        scfg = cfg["studies"].get(study_key, {})
+        if not bool(scfg.get("enabled", False)):
+            continue
+        balancing = scfg.get("balancing", "smote")
+        if not cfg["samplers"].get(balancing, {}).get("enabled", False):
+            continue
+        feature_set = scfg.get("feature_set", "enhanced_features")
+        Xtr_s, ytr_s, Xv_s, yv_s, Xt_s, yt_s = feature_lookup[feature_set]
+        for model_name in scfg.get("models", []):
+            if model_name not in models:
+                continue
+            results.append(
+                _run_case(
+                    study_name,
+                    feature_set,
+                    balancing,
+                    model_name,
+                    models[model_name],
+                    Xtr_s,
+                    ytr_s,
+                    Xv_s,
+                    yv_s,
+                    Xt_s,
+                    yt_s,
+                    cfg["costs"],
+                    cfg["threshold"],
+                    cfg["samplers"],
+                    int(cfg["random_state"]),
+                    rule_cost,
+                )
+            )
 
     result_df = pd.DataFrame([r.__dict__ for r in results]).sort_values(["study", "f1"], ascending=[True, False])
 

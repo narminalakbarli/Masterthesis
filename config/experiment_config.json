@@ -222,6 +222,41 @@
         "OneClassSVM",
         "HybridXGBLSTM"
       ]
+    },
+    "model_family_comparison": {
+      "enabled": true,
+      "balancing": "smote",
+      "feature_set": "enhanced_features",
+      "models": [
+        "LogisticRegression",
+        "DecisionTree",
+        "RandomForest",
+        "XGBoost",
+        "CatBoost",
+        "MLP",
+        "LSTMProxy",
+        "CNNProxy",
+        "AttentionProxy"
+      ]
+    },
+    "ensemble_comparison": {
+      "enabled": true,
+      "balancing": "smote",
+      "feature_set": "enhanced_features",
+      "models": [
+        "StackingEnsemble",
+        "HybridXGBLSTM"
+      ]
+    },
+    "anomaly_methods": {
+      "enabled": true,
+      "balancing": "none",
+      "feature_set": "enhanced_features",
+      "models": [
+        "AutoencoderProxy",
+        "IsolationForest",
+        "OneClassSVM"
+      ]
     }
   },
   "paper_targets": [
