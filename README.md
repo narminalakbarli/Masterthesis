@@ -46,7 +46,24 @@ python -m src.thesis_repro.run_pipeline
 
 If Kaggle credentials are not configured, the downloader automatically uses a public mirror.
 
-The experiment config in `config/experiment_config.json` now contains split settings, thresholding, costs, sampler parameters, model hyperparameters, ensemble setup, study matrices, and output paths.
+The experiment config in `config/experiment_config.json` now contains split settings, thresholding, costs, sampler parameters, model hyperparameters, ensemble setup, study matrices, runtime (CPU/GPU) toggles, and output paths.
+
+### Optional GPU acceleration
+
+GPU usage is **disabled by default** and can be toggled in `config/experiment_config.json`:
+
+```json
+"runtime": {
+  "gpu": {
+    "enabled": true,
+    "device": "cuda",
+    "catboost_devices": "0"
+  }
+}
+```
+
+- `runtime.gpu.enabled: true` enables GPU mode for XGBoost and CatBoost.
+- If GPU is unavailable, the pipeline automatically falls back to CPU for those models.
 
 ---
 

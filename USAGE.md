@@ -98,6 +98,25 @@ The repository is config-driven. This JSON controls:
 - reference tables (`paper_targets`, `paper_experiment_inventory`),
 - output paths and filenames (`outputs`).
 
+
+### Runtime acceleration (CPU/GPU toggle)
+
+You can enable GPU acceleration from config:
+
+```json
+"runtime": {
+  "gpu": {
+    "enabled": true,
+    "device": "cuda",
+    "catboost_devices": "0"
+  }
+}
+```
+
+- `runtime.gpu.enabled=false` (default): run all models on CPU.
+- `runtime.gpu.enabled=true`: enables GPU mode for XGBoost (`device`) and CatBoost (`task_type=GPU`, `devices`).
+- If a compatible GPU is not available, the pipeline retries those models on CPU automatically.
+
 ### CLI overrides
 
 `run_pipeline` accepts optional overrides:
