@@ -41,17 +41,27 @@ bash scripts/setup_env.sh
 source .venv/bin/activate
 python scripts/download_kaggle_data.py --out-dir data
 python scripts/extract_thesis_chapters.py
-python -m src.thesis_repro.run_pipeline --sample-size 80000
+python -m src.thesis_repro.run_pipeline
 ```
 
 If Kaggle credentials are not configured, the downloader automatically uses a public mirror.
 
+The experiment config in `config/experiment_config.json` now contains split settings, thresholding, costs, sampler parameters, model hyperparameters, ensemble setup, study matrices, and output paths.
+
 ---
 
-## Reproducibility tutorial
 
-For a polished step-by-step guide (including expected output files and troubleshooting), see:
+## Thesis code snippets
 
+For thesis-ready code excerpts (text blocks with short explanations), see:
+
+- **[`snippets/`](snippets/README.md)**
+
+## Reproducibility & usage guides
+
+For detailed end-to-end usage and reproducibility instructions, see:
+
+- **[`USAGE.md`](USAGE.md)**
 - **[`docs/reproducibility_tutorial.md`](docs/reproducibility_tutorial.md)**
 
 ---

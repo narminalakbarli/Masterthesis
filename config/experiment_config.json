@@ -1,0 +1,364 @@
+{
+  "sample_size": 80000,
+  "random_state": 42,
+  "splits": {
+    "sort_column": "Time",
+    "test_size": 0.2,
+    "validation_size_within_train": 0.2
+  },
+  "preprocessing": {
+    "scale_numeric": true,
+    "onehot_handle_unknown": "ignore"
+  },
+  "threshold": {
+    "min": 0.1,
+    "max": 0.9,
+    "num": 17,
+    "beta": 2.0
+  },
+  "costs": {
+    "fraud_cost": 200.0,
+    "review_cost": 2.0
+  },
+  "rule_based": {
+    "amount_threshold": 220.0,
+    "risky_hours": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "region_changed_risk_value": 1,
+    "same_state_risk_value": 0,
+    "minimum_score": 2,
+    "proba_scale": 0.9,
+    "proba_bias": 0.05
+  },
+  "samplers": {
+    "none": {
+      "enabled": true
+    },
+    "random_oversampling": {
+      "enabled": true
+    },
+    "smote": {
+      "enabled": true,
+      "sampling_strategy": 0.15,
+      "k_neighbors": 3
+    },
+    "smoteenn": {
+      "enabled": true,
+      "sampling_strategy": 0.15
+    },
+    "smotetomek": {
+      "enabled": true,
+      "sampling_strategy": 0.15
+    },
+    "adasyn": {
+      "enabled": true,
+      "sampling_strategy": 0.15,
+      "n_neighbors": 3
+    },
+    "smotegan_proxy": {
+      "enabled": true,
+      "sampling_strategy": 0.15
+    },
+    "random_undersampling": {
+      "enabled": true
+    },
+    "cost_sensitive": {
+      "enabled": true
+    }
+  },
+  "models": {
+    "LogisticRegression": {
+      "enabled": true,
+      "max_iter": 800,
+      "n_jobs": -1
+    },
+    "DecisionTree": {
+      "enabled": true,
+      "max_depth": 12,
+      "min_samples_leaf": 10
+    },
+    "RandomForest": {
+      "enabled": true,
+      "n_estimators": 220,
+      "max_depth": 14,
+      "n_jobs": -1
+    },
+    "XGBoost": {
+      "enabled": true,
+      "n_estimators": 130,
+      "max_depth": 5,
+      "learning_rate": 0.08,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "objective": "binary:logistic",
+      "eval_metric": "logloss",
+      "tree_method": "hist",
+      "n_jobs": -1
+    },
+    "MLP": {
+      "enabled": true,
+      "hidden_layer_sizes": [
+        96,
+        48
+      ],
+      "max_iter": 30
+    },
+    "LSTMProxy": {
+      "enabled": true,
+      "hidden_layer_sizes": [
+        128,
+        64,
+        32
+      ],
+      "max_iter": 40
+    },
+    "CNNProxy": {
+      "enabled": true,
+      "hidden_layer_sizes": [
+        64,
+        64,
+        32
+      ],
+      "max_iter": 40
+    },
+    "AttentionProxy": {
+      "enabled": true,
+      "hidden_layer_sizes": [
+        160,
+        40
+      ],
+      "max_iter": 40
+    },
+    "AutoencoderProxy": {
+      "enabled": true,
+      "n_components": 12
+    },
+    "IsolationForest": {
+      "enabled": true,
+      "n_estimators": 180,
+      "contamination": 0.02
+    },
+    "OneClassSVM": {
+      "enabled": true,
+      "kernel": "rbf",
+      "gamma": "scale",
+      "nu": 0.02
+    },
+    "CatBoost": {
+      "enabled": true,
+      "depth": 6,
+      "learning_rate": 0.08,
+      "iterations": 160,
+      "verbose": false
+    }
+  },
+  "ensembles": {
+    "StackingEnsemble": {
+      "enabled": true,
+      "estimators": [
+        "RandomForest",
+        "XGBoost"
+      ],
+      "final_estimator": {
+        "max_iter": 400
+      },
+      "n_jobs": -1
+    },
+    "HybridXGBLSTM": {
+      "enabled": true,
+      "estimators": [
+        "XGBoost",
+        "LSTMProxy"
+      ],
+      "final_estimator": {
+        "max_iter": 400
+      },
+      "n_jobs": -1
+    }
+  },
+  "studies": {
+    "spatiotemporal_impact": {
+      "enabled": true,
+      "balancing": "smote",
+      "models": [
+        "LogisticRegression",
+        "RandomForest",
+        "XGBoost",
+        "DecisionTree",
+        "StackingEnsemble",
+        "CatBoost"
+      ]
+    },
+    "balancing_methods": {
+      "enabled": true,
+      "balancing_methods": [
+        "none",
+        "random_oversampling",
+        "smote",
+        "smoteenn",
+        "smotetomek",
+        "adasyn",
+        "smotegan_proxy",
+        "random_undersampling",
+        "cost_sensitive"
+      ],
+      "models": [
+        "LogisticRegression",
+        "RandomForest",
+        "XGBoost",
+        "MLP",
+        "CatBoost",
+        "LSTMProxy",
+        "CNNProxy",
+        "AttentionProxy",
+        "AutoencoderProxy",
+        "IsolationForest",
+        "OneClassSVM",
+        "HybridXGBLSTM"
+      ]
+    }
+  },
+  "paper_targets": [
+    {
+      "claim": "RF recall baseline",
+      "target": 0.93,
+      "metric": "recall",
+      "model": "RandomForest",
+      "feature_set": "baseline"
+    },
+    {
+      "claim": "RF recall enhanced",
+      "target": 0.96,
+      "metric": "recall",
+      "model": "RandomForest",
+      "feature_set": "enhanced"
+    },
+    {
+      "claim": "LR recall baseline",
+      "target": 0.6,
+      "metric": "recall",
+      "model": "LogisticRegression",
+      "feature_set": "baseline"
+    },
+    {
+      "claim": "LR recall enhanced",
+      "target": 0.68,
+      "metric": "recall",
+      "model": "LogisticRegression",
+      "feature_set": "enhanced"
+    },
+    {
+      "claim": "XGB recall baseline",
+      "target": 0.78,
+      "metric": "recall",
+      "model": "XGBoost",
+      "feature_set": "baseline"
+    },
+    {
+      "claim": "XGB recall enhanced",
+      "target": 0.82,
+      "metric": "recall",
+      "model": "XGBoost",
+      "feature_set": "enhanced"
+    },
+    {
+      "claim": "CatBoost recall baseline",
+      "target": 0.77,
+      "metric": "recall",
+      "model": "CatBoost",
+      "feature_set": "baseline"
+    },
+    {
+      "claim": "CatBoost recall enhanced",
+      "target": 0.85,
+      "metric": "recall",
+      "model": "CatBoost",
+      "feature_set": "enhanced"
+    },
+    {
+      "claim": "Rule recall",
+      "target": 0.81,
+      "metric": "recall",
+      "model": "RuleBasedBenchmark",
+      "feature_set": "enhanced"
+    },
+    {
+      "claim": "Rule precision",
+      "target": 0.92,
+      "metric": "precision",
+      "model": "RuleBasedBenchmark",
+      "feature_set": "enhanced"
+    },
+    {
+      "claim": "Best ensemble F1",
+      "target": 0.88,
+      "metric": "f1",
+      "model": "StackingEnsemble",
+      "feature_set": "enhanced"
+    },
+    {
+      "claim": "Best ensemble recall",
+      "target": 0.96,
+      "metric": "recall",
+      "model": "StackingEnsemble",
+      "feature_set": "enhanced"
+    }
+  ],
+  "paper_experiment_inventory": [
+    {
+      "paper_experiment": "E1 spatial-temporal feature impact",
+      "paper_count": 1,
+      "implemented": true
+    },
+    {
+      "paper_experiment": "E2 balancing method comparison (random/smote/adasyn/undersampling/hybrid/cost-sensitive)",
+      "paper_count": 8,
+      "implemented": true
+    },
+    {
+      "paper_experiment": "E3 model family comparison (LR/DT/RF/XGB/CatBoost/NN)",
+      "paper_count": 9,
+      "implemented": true
+    },
+    {
+      "paper_experiment": "E4 deep sequential models (LSTM/attention/CNN)",
+      "paper_count": 3,
+      "implemented": true
+    },
+    {
+      "paper_experiment": "E5 ensemble comparison (stacking, hybrid XGB-LSTM)",
+      "paper_count": 2,
+      "implemented": true
+    },
+    {
+      "paper_experiment": "E6 rule-based benchmark and cost-benefit",
+      "paper_count": 1,
+      "implemented": true
+    },
+    {
+      "paper_experiment": "E7 unsupervised/anomaly models (autoencoder, isolation forest, one-class SVM)",
+      "paper_count": 3,
+      "implemented": true
+    }
+  ],
+  "outputs": {
+    "results_dir": "outputs",
+    "plots_dir": "outputs/plots",
+    "model_results_csv": "model_results.csv",
+    "paper_target_validation_csv": "paper_target_validation.csv",
+    "paper_experiment_inventory_csv": "paper_experiment_inventory.csv",
+    "summary_markdown": "results_summary.md",
+    "plots": {
+      "spatiotemporal_recall": "spatiotemporal_recall.png",
+      "spatiotemporal_f1": "spatiotemporal_f1.png",
+      "balancing_heatmap_f1": "balancing_heatmap_f1.png",
+      "benchmark_savings": "benchmark_savings.png"
+    }
+  }
+}
