@@ -278,6 +278,13 @@ def default_experiment_config() -> dict[str, Any]:
             {"paper_experiment": "E6 rule-based benchmark and cost-benefit", "paper_count": 1, "implemented": True},
             {"paper_experiment": "E7 unsupervised/anomaly models (autoencoder, isolation forest, one-class SVM)", "paper_count": 3, "implemented": True},
         ],
+        "runtime": {
+            "gpu": {
+                "enabled": False,
+                "device": "cuda",
+                "catboost_devices": "0"
+            }
+        },
         "outputs": {
             "results_dir": "outputs",
             "plots_dir": "outputs/plots",
@@ -375,8 +382,17 @@ def _sampler(name: str, sampler_cfg: dict[str, Any], random_state: int):
     raise ValueError(name)
 
 
-def _model_bank(models_cfg: dict[str, Any], scale_pos_weight: float, random_state: int) -> dict[str, object]:
+def _model_bank(
+    models_cfg: dict[str, Any],
+    scale_pos_weight: float,
+    random_state: int,
+    runtime_cfg: dict[str, Any] | None = None,
+) -> dict[str, object]:
     models: dict[str, object] = {}
+    gpu_cfg = (runtime_cfg or {}).get("gpu", {}) if isinstance(runtime_cfg, dict) else {}
+    gpu_enabled = bool(gpu_cfg.get("enabled", False))
+    gpu_device = str(gpu_cfg.get("device", "cuda"))
+    gpu_catboost_devices = str(gpu_cfg.get("catboost_devices", "0"))
 
     def enabled(name: str) -> bool:
         return bool(models_cfg.get(name, {}).get("enabled", False))
@@ -404,18 +420,23 @@ def _model_bank(models_cfg: dict[str, Any], scale_pos_weight: float, random_stat
 
     if enabled("XGBoost"):
         c = models_cfg["XGBoost"]
+        xgb_params = {
+            "n_estimators": int(c.get("n_estimators", 130)),
+            "max_depth": int(c.get("max_depth", 5)),
+            "learning_rate": float(c.get("learning_rate", 0.08)),
+            "subsample": float(c.get("subsample", 0.9)),
+            "colsample_bytree": float(c.get("colsample_bytree", 0.9)),
+            "objective": c.get("objective", "binary:logistic"),
+            "eval_metric": c.get("eval_metric", "logloss"),
+            "tree_method": c.get("tree_method", "hist"),
+            "random_state": random_state,
+            "n_jobs": int(c.get("n_jobs", -1)),
+            "scale_pos_weight": scale_pos_weight,
+        }
+        if gpu_enabled:
+            xgb_params["device"] = c.get("device", gpu_device)
         models["XGBoost"] = XGBClassifier(
-            n_estimators=int(c.get("n_estimators", 130)),
-            max_depth=int(c.get("max_depth", 5)),
-            learning_rate=float(c.get("learning_rate", 0.08)),
-            subsample=float(c.get("subsample", 0.9)),
-            colsample_bytree=float(c.get("colsample_bytree", 0.9)),
-            objective=c.get("objective", "binary:logistic"),
-            eval_metric=c.get("eval_metric", "logloss"),
-            tree_method=c.get("tree_method", "hist"),
-            random_state=random_state,
-            n_jobs=int(c.get("n_jobs", -1)),
-            scale_pos_weight=scale_pos_weight,
+            **xgb_params,
         )
 
     for name in ["MLP", "LSTMProxy", "CNNProxy", "AttentionProxy"]:
@@ -465,6 +486,8 @@ def _model_bank(models_cfg: dict[str, Any], scale_pos_weight: float, random_stat
                 iterations=int(c.get("iterations", 160)),
                 verbose=bool(c.get("verbose", False)),
                 random_seed=random_state,
+                task_type="GPU" if gpu_enabled else "CPU",
+                devices=gpu_catboost_devices if gpu_enabled else None,
             )
         except Exception:
             pass
@@ -550,11 +573,39 @@ def _run_case(
 
         test_score = model.predict_proba(X_test_proc)[:, 1]
         pred = (test_score >= thr).astype(int)
-    except ValueError:
-        fit_s = perf_counter() - t0
-        thr = 0.5
-        test_score = np.zeros(len(y_test), dtype=float)
-        pred = np.zeros(len(y_test), dtype=int)
+    except Exception:
+        gpu_fallback_done = False
+        if hasattr(model, "set_params"):
+            try:
+                model.set_params(device="cpu", tree_method="hist")
+                model.fit(X_fit, y_fit)
+                fit_s = perf_counter() - t0
+                val_score = model.predict_proba(X_val_proc)[:, 1]
+                thr = _best_threshold(y_val, val_score, threshold_cfg)
+                test_score = model.predict_proba(X_test_proc)[:, 1]
+                pred = (test_score >= thr).astype(int)
+                gpu_fallback_done = True
+            except Exception:
+                gpu_fallback_done = False
+
+        if not gpu_fallback_done and hasattr(model, "set_params"):
+            try:
+                model.set_params(task_type="CPU")
+                model.fit(X_fit, y_fit)
+                fit_s = perf_counter() - t0
+                val_score = model.predict_proba(X_val_proc)[:, 1]
+                thr = _best_threshold(y_val, val_score, threshold_cfg)
+                test_score = model.predict_proba(X_test_proc)[:, 1]
+                pred = (test_score >= thr).astype(int)
+                gpu_fallback_done = True
+            except Exception:
+                gpu_fallback_done = False
+
+        if not gpu_fallback_done:
+            fit_s = perf_counter() - t0
+            thr = 0.5
+            test_score = np.zeros(len(y_test), dtype=float)
+            pred = np.zeros(len(y_test), dtype=int)
 
     cost = _cost_benefit(y_test, pred, costs_cfg)
 
@@ -722,7 +773,12 @@ def run(sample_size: int | None = None, random_state: int | None = None, config:
     ]
 
     scale_pos_weight = float((ytr_e == 0).sum() / max((ytr_e == 1).sum(), 1))
-    models = _model_bank(cfg["models"], scale_pos_weight=scale_pos_weight, random_state=int(cfg["random_state"]))
+    models = _model_bank(
+        cfg["models"],
+        scale_pos_weight=scale_pos_weight,
+        random_state=int(cfg["random_state"]),
+        runtime_cfg=cfg.get("runtime", {}),
+    )
     _add_ensembles(models, cfg["ensembles"])
 
     spt_cfg = cfg["studies"]["spatiotemporal_impact"]

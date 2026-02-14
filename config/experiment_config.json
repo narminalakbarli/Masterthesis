@@ -395,5 +395,12 @@
       "balancing_heatmap_f1": "balancing_heatmap_f1.png",
       "benchmark_savings": "benchmark_savings.png"
     }
+  },
+  "runtime": {
+    "gpu": {
+      "enabled": false,
+      "device": "cuda",
+      "catboost_devices": "0"
+    }
   }
 }
